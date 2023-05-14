@@ -6,9 +6,8 @@
 #define EX1_LINKEDLIST_H
 
 #include "Node.h"
+#include "IsraeliQueue.h"
 #include "stdbool.h"
-
-typedef int (*ComparisonFunction)(void*,void*);
 
 typedef struct linkedList {
     Node m_first;

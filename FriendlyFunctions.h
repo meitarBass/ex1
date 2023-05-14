@@ -23,24 +23,30 @@ int areFriends(void *st, void *ha) {
     Student hacker = (Student)ha;
     Student student = (Student)st;
 
-    Node tmpNode = hacker->m_hackersFriends->m_first;
-
-    while(tmpNode != NULL) {
-        int tmpId = *(int *)(tmpNode->m_data);
-        if(tmpId == student->m_id) {
-            return FRIENDS;
+    Node tmpNode;
+    if(hacker->m_hackersFriends != NULL) {
+        tmpNode = hacker->m_hackersFriends->m_first;
+        while(tmpNode != NULL) {
+            int tmpId = *(int *)(tmpNode->m_data);
+            if(tmpId == student->m_id) {
+                return FRIENDS;
+            }
+            tmpNode = tmpNode->m_next;
         }
-        tmpNode = tmpNode->m_next;
     }
 
-    tmpNode = hacker->m_hackersRivals->m_first;
-    while(tmpNode != NULL) {
-        int tmpId = *(int *)(tmpNode->m_data);
-        if(tmpId == student->m_id) {
-            return RIVALS;
+
+    if(hacker->m_hackersRivals != NULL) {
+        tmpNode = hacker->m_hackersRivals->m_first;
+        while(tmpNode != NULL) {
+            int tmpId = *(int *)(tmpNode->m_data);
+            if(tmpId == student->m_id) {
+                return RIVALS;
+            }
+            tmpNode = tmpNode->m_next;
         }
-        tmpNode = tmpNode->m_next;
     }
+
     return NO_RELATION;
 }
 
@@ -68,25 +74,28 @@ int calcNameDist(const char *h, const char *s, bool isSensitive) {
     int total = 0;
     while(*h != '\0' || *s != '\0') {
         if(*h != '\0' && *s == '\0') {
+            h++;
             if (isSensitive) {
                 total += (int)(*h);
             } else {
                 total += (int)(makeLower(*h));
             }
         } else if (*s != '\0' && *h == '\0') {
+            s++;
             if (isSensitive) {
                 total += (int)(*s);
             } else {
                 total += (int)(makeLower(*s));
             }
         } else if (isSensitive) {
+            h++;
+            s++;
             total += abs((int)(*h) - (int)(*s));
         } else {
+            h++;
+            s++;
             total += abs((int)(makeLower(*h)) - (int)(makeLower(*s)));
         }
-
-        h++;
-        s++;
     }
     return total;
 }

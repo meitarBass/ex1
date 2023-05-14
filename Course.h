@@ -9,6 +9,9 @@
 #include "IsraeliQueue.h"
 #include "tool/StringOps.h"
 
+#define RIVALS_MINIMUM 0
+#define FRIENDS 20
+
 typedef struct course {
 
     int m_courseNum;

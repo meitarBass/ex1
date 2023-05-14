@@ -6,7 +6,7 @@
 #include "../FriendlyFunctions.h"
 
 void addFunctionsToSystem(EnrollmentSystem system, bool isSensitive) {
-    Node courseNode = (Node) system->m_courses;
+    Node courseNode = (Node) system->m_courses->m_first;
     while(courseNode != NULL) {
         Course course = (Course)courseNode->m_data;
         if(isSensitive) {
@@ -26,17 +26,18 @@ int main(int argc, char **argv) {
         system = createEnrollment((FILE *) argv[1], (FILE *) argv[2], (FILE *) argv[3]);
         if(system != NULL) {
             addFunctionsToSystem(system, true);
-//            if(readEnrollment(system, (FILE *) argv[4]) != NULL) {
-//                hackEnrollment(system, (FILE *) argv[5]);
-//            }
+            if(readEnrollment(system, (FILE *) argv[4]) != NULL) {
+                hackEnrollment(system, (FILE *) argv[5]);
+            }
         }
-    } else if(argc == 7) {
+    }
+    else if(argc == 7) {
         system = createEnrollment((FILE *) argv[2], (FILE *) argv[3], (FILE *) argv[4]);
         if(system != NULL) {
             addFunctionsToSystem(system, false);
-//            if(readEnrollment(system, (FILE *) argv[5]) != NULL) {
-//                hackEnrollment(system, (FILE *) argv[6]);
-//            }
+            if(readEnrollment(system, (FILE *) argv[5]) != NULL) {
+                hackEnrollment(system, (FILE *) argv[6]);
+            }
         }
     }
 

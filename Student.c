@@ -16,7 +16,7 @@ bool checkForStudentNullParamsAndReset(Student student, const char *id, const ch
 
 bool checkIdValidity(const char *id) {
     bool isNumeric = isNumericString(id);
-    bool isValidLength = strnlen(id, 4096) == 9 || (strnlen(id, 4096) == 10 && id[9] == '\n');
+    bool isValidLength = my_strnlen(id, ' ') == 9 || (my_strnlen(id, ' ') == 10 && id[9] == '\n');
     return isNumeric && isValidLength;
 }
 
@@ -50,8 +50,6 @@ bool initStudent(Student student, const char *id, const char *credits, const cha
     student->m_department = department;
 
     student->m_isHacker = false;
-    student->m_numOfFriends = 0;
-    student->m_numOfRivals = 0;
 
     return true;
 }
@@ -71,20 +69,57 @@ void destroyStudent(Student pStudent) {
     free((void *) pStudent->m_lastName);
     free((void *) pStudent->m_city);
     free((void *) pStudent->m_department);
+
+    free(pStudent);
+    pStudent = NULL;
 }
 
 void destroyHacker(Hacker pHacker) {
     if(pHacker == NULL) {
         return;
     }
+
     // destroy courses
-    freeList(pHacker->m_desiredCourses);
+    Node tmpNode;
+
+    if(pHacker->m_desiredCourses != NULL) {
+        tmpNode = pHacker->m_desiredCourses->m_first;
+        while(tmpNode != NULL) {
+            free(tmpNode->m_data);
+            Node toFree = tmpNode;
+            tmpNode = tmpNode->m_next;
+            free(toFree);
+        }
+    }
+
 
     // destroy friends
-    freeList(pHacker->m_friends);
+    if(pHacker->m_friends != NULL) {
+        tmpNode = pHacker->m_friends->m_first;
+        while(tmpNode != NULL) {
+            free(tmpNode->m_data);
+            Node toFree = tmpNode;
+            tmpNode = tmpNode->m_next;
+            free(toFree);
+        }
+    }
+
 
     // destroy rivals
-    freeList(pHacker->m_rivals);
+    if(pHacker->m_rivals != NULL) {
+        tmpNode = pHacker->m_rivals->m_first;
+        while(tmpNode != NULL) {
+            free(tmpNode->m_data);
+            Node toFree = tmpNode;
+            tmpNode = tmpNode->m_next;
+            free(toFree);
+        }
+    }
+
+    free(pHacker->m_desiredCourses);
+    free(pHacker->m_friends);
+    free(pHacker->m_rivals);
+    free(pHacker);
 }
 void parseHackerIntoStudent(Hacker pHacker, Student pStudent) {
     pStudent->m_hackersFriends = pHacker->m_friends;

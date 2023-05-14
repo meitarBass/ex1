@@ -14,9 +14,6 @@ typedef struct student {
     int m_credits;
     int m_gpa;
 
-    int m_numOfFriends;
-    int m_numOfRivals;
-
     const char *m_name;
     const char *m_lastName;
     const char *m_city;

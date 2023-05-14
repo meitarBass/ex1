@@ -43,12 +43,19 @@ IsraeliQueue IsraeliQueueCreate(FriendshipFunction *friendshipFunction,
     }
 
     LinkedList list = (LinkedList) safeAlloc(sizeof(struct linkedList));
-    if (list == NULL) {
+    Node first = (Node) safeAlloc(sizeof (struct node));
+    if (list == NULL || first == NULL) {
         free(queue);
+        free(first);
         return NULL;
     }
 
+    memset(list, 0, sizeof(struct node));
+    memset(first, 0, sizeof(struct node));
+
     queue->list = list;
+    queue->list->m_first = first;
+    queue->list->m_last = first;
     queue->friendshipFunction = copyNullTerminatedArr((const void **) friendshipFunction);
     if (friendshipFunction == NULL) {
         IsraeliQueueDestroy(queue);
@@ -91,18 +98,16 @@ void IsraeliQueueDestroy(IsraeliQueue q) {
     // Free the linked list
     freeList(q->list);
     free(q->friendshipFunction);
-
-    q->list->m_first = NULL;
-    q->list->m_last = NULL;
-    q->friendshipFunction = NULL;
     free(q);
 }
+
 IsraeliQueueError IsraeliQueueEnqueue(IsraeliQueue q, void *item) {
     if (q == NULL || item == NULL) {
         return ISRAELIQUEUE_BAD_PARAM;
     }
 
     Node newNode = (Node) safeAlloc(sizeof(struct node));
+
     if (newNode == NULL) {
         return ISRAELIQUEUE_ALLOC_FAILED;
     }
@@ -111,10 +116,13 @@ IsraeliQueueError IsraeliQueueEnqueue(IsraeliQueue q, void *item) {
     newNode->m_data = item;
 
     insert(q->list, location, newNode);
+
     if (location == q->list->m_last) {
         q->list->m_last = q->list->m_last->m_next;
     }
 
+    newNode->m_friends = 0;
+    newNode->m_rivals = 0;
     return ISRAELIQUEUE_SUCCESS;
 }
 IsraeliQueueError IsraeliQueueAddFriendshipMeasure(IsraeliQueue q, FriendshipFunction func) {
@@ -190,7 +198,6 @@ IsraeliQueue IsraeliQueueMerge(IsraeliQueue *q, ComparisonFunction comparisonFun
         return NULL;
     }
 
-    //TODO: Add functions
     newQueue->comparisonFunction = comparisonFunction;
     newQueue->m_friendship = calculateGeoFriendship(q);
     newQueue->m_rivalry = calculateGeoRivalry(q);
@@ -234,25 +241,25 @@ Node findInsertionLocation(IsraeliQueue q, void *item) {
     }
 
     Node lastValidInsertionLocation = q->list->m_last;
-    Student lastValid = (Student)(tmp->m_data);
     Student student = (Student) (item);
     if (student->m_isHacker) {
         bool alreadyFoundLocation = false;
         while ((tmp = pop(&s)) != NULL) {
-            Student tmpStudent = (Student)(tmp->m_data);
-            if (tmpStudent->m_numOfFriends < FRIEND_QUOTA && checkIfFriends(q, tmp, item)) {
+            if (tmp->m_friends < FRIEND_QUOTA && checkIfFriends(q, tmp, item)) {
                 if (alreadyFoundLocation) {
-                    lastValid->m_numOfFriends --;
+                    lastValidInsertionLocation->m_friends--;
                 }
                 alreadyFoundLocation = true;
                 lastValidInsertionLocation = tmp;
-            } else if (tmpStudent->m_numOfRivals < RIVAL_QUOTA && checkIfRivals(q, tmp->m_data, item)) {
-                tmpStudent->m_numOfRivals++;
+            } else if (tmp->m_rivals < RIVAL_QUOTA && checkIfRivals(q, tmp->m_data, item)) {
+                tmp->m_rivals++;
                 checkForMoreBlocks(q, tmp, item, s);
                 break;
             }
         }
-        lastValid->m_numOfFriends++;
+        lastValidInsertionLocation->m_friends++;
+    } else {
+        while(pop(&s) != NULL);
     }
     return lastValidInsertionLocation;
 }
@@ -357,9 +364,8 @@ double getFriendshipAverage(IsraeliQueue q, void *item1, void *item2) {
 }
 void checkForMoreBlocks(IsraeliQueue q, Node tmp, void *item, stack s) {
     while ((tmp = pop(&s)) != NULL){
-        Student student = (Student) tmp->m_data;
-        if(student->m_numOfRivals < RIVAL_QUOTA && checkIfRivals(q, tmp->m_data, item)){
-            student->m_numOfRivals++;
+        if(tmp->m_rivals < RIVAL_QUOTA && checkIfRivals(q, tmp->m_data, item)){
+            tmp->m_rivals++;
         }
     }
 }
@@ -383,4 +389,8 @@ bool checkIfRivals(IsraeliQueue q, void *item1, void *item2) {
     }
     double avg = getFriendshipAverage(q, item1, item2);
     return avg < q->m_rivalry;
+}
+
+void initQueue(IsraeliQueue q) {
+    q = safeAlloc(sizeof(struct IsraeliQueue_t));
 }

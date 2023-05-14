@@ -39,17 +39,21 @@ bool initCourse(Course course, const char *courseNumber, const char *courseSize)
         return false;
     }
 
-    // TODO: Init course queue
-
+    FriendshipFunction f = NULL;
+    course->m_students = IsraeliQueueCreate(&f, (ComparisonFunction) compareById, FRIENDS, RIVALS_MINIMUM);
+    if (course->m_students == NULL) {
+        return false;
+    }
 
     return true;
 }
 
 void destroyCourse(Course pCourse) {
-    if(pCourse != NULL) {
+    if(pCourse == NULL) {
         return;
     }
 
-    // TODO: Destroy Queue here
+    IsraeliQueueDestroy(pCourse->m_students);
     free(pCourse);
 }
+

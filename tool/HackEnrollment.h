@@ -19,7 +19,7 @@ bool parseQueueFile(EnrollmentSystem sys, FILE *queues);
 void printQueueIntoFile(EnrollmentSystem sys, FILE *out);
 
 Student parseSingleLineIntoStudent(FILE *students);
-Course parseSingleLineIntoCourse(FILE *course, bool isSentive);
+Course parseSingleLineIntoCourse(FILE *course, bool isSensitive);
 IsraeliQueueError parseSingleLineIntoQueue(EnrollmentSystem sys, FILE *queue);
 
 #endif //EX1_HACKENROLLMENT_H

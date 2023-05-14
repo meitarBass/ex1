@@ -10,11 +10,11 @@
 
 void freeList(LinkedList list) {
     while(list->m_first != NULL) {
-        free(list->m_first->m_data);
         Node toFree = list->m_first;
         list->m_first = list->m_first->m_next;
         free(toFree);
     }
+    free(list);
 }
 
 void insert(LinkedList q, Node location, Node newNode) {
@@ -31,8 +31,9 @@ void *dequeueFirstItem(LinkedList list) {
     Node tmp = list->m_first;
     list->m_first = list->m_first->m_next;
 
-    void *data = tmp->m_data;
+    void *data = list->m_first->m_data;
     free(tmp);
+    tmp = NULL;
     list->m_size--;
     return data;
 }

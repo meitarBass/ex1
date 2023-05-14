@@ -14,18 +14,11 @@
 typedef struct node {
     void *m_data;
     struct node *m_next;
+
+    int m_friends;
+    int m_rivals;
 } *Node;
 
-Node pushBack(Node start, Node newNode) {
-    if (start == NULL) {
-        return newNode;
-    }
-    Node tmp = start;
-    while (tmp->m_next != NULL) {
-        tmp = tmp->m_next;
-    }
-    tmp->m_next = newNode;
-    return start;
-}
+Node pushBack(Node start, Node newNode);
 
 #endif //EX1_NODE_H

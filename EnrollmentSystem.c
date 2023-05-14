@@ -19,40 +19,58 @@ int checkIfHackersAreSatisfiedReturnIdIfNot(EnrollmentSystem system) {
     return HACKERS_SATISFIED;
 }
 
+bool checkIfHackerAskedForOneCourseAndNotSatisfied(EnrollmentSystem system) {
+    int satisfaction = 0;
+    Node tmpNode = system->m_hackers->m_first;
+    while (tmpNode != NULL) {
+        Hacker tmpHacker = (Hacker) tmpNode->m_data;
+        Node myNode = (Node)tmpHacker->m_desiredCourses->m_first;
+        while(myNode != NULL) {
+            Course desiredCourse = (Course) myNode->m_data;
+            Course course = findCourseInSystem(system, desiredCourse->m_courseNum);
+            int pos = IsraeliQueueGetPosition(course->m_students, getHackerFromList(system, tmpHacker));
+            if (pos < course->m_courseSize) {
+                satisfaction++;
+            }
+            myNode = myNode->m_next;
+        }
+        if(getHackerDesiredCount(tmpHacker) == 1 && satisfaction < 1) {
+            return false;
+        }
+        tmpNode = tmpNode->m_next;
+    }
+    return true;
+}
+
 void initEnrollmentSystem(EnrollmentSystem system) {
     if(system == NULL) {
         return;
     }
 
-    system->m_students = NULL;
-    system->m_courses = NULL;
-    system->m_hackers = NULL;
+    system->m_students = safeAlloc(sizeof(struct linkedList));
+    system->m_courses = safeAlloc(sizeof(struct linkedList));
+    system->m_hackers = safeAlloc(sizeof(struct linkedList));
+
     system->m_caseSenstive = true;
 }
+
 void destroyEnrollmentSystem(EnrollmentSystem system) {
     if(system == NULL) {
         return;
     }
 
-    // Destroy students
     Node tmpNode;
-    tmpNode = system->m_students->m_first;
 
+    // Destroy students
+    tmpNode = system->m_students->m_first;
     while(tmpNode != NULL) {
         Node toFree = tmpNode;
         destroyStudent((Student) tmpNode->m_data);
+        tmpNode->m_data = NULL;
         tmpNode = tmpNode->m_next;
         free(toFree);
     }
 
-    // Destroy courses
-    tmpNode = system->m_courses->m_first;
-    while(tmpNode != NULL) {
-        Node toFree = tmpNode;
-        destroyCourse((Course) tmpNode->m_data);
-        tmpNode = tmpNode->m_next;
-        free(toFree);
-    }
 
     // Destroy hackers
     tmpNode = system->m_hackers->m_first;
@@ -62,6 +80,20 @@ void destroyEnrollmentSystem(EnrollmentSystem system) {
         tmpNode = tmpNode->m_next;
         free(toFree);
     }
+
+    // Destroy courses
+    tmpNode = system->m_courses->m_first;
+    while(tmpNode != NULL) {
+        Node toFree = tmpNode;
+        destroyCourse((Course)tmpNode->m_data);
+        tmpNode = tmpNode->m_next;
+        free(toFree);
+    }
+
+    free(system->m_students);
+    free(system->m_courses);
+    free(system->m_hackers);
+
     free(system);
 }
 bool isHackerSatisfied(EnrollmentSystem sys, Hacker hacker) {
@@ -137,22 +169,28 @@ int parseHackerId(FILE *hackers, int *status) {
     free((void *) line);
     return id;
 }
-Node parseHackerCourses(FILE *hackers, int *status) {
+
+LinkedList parseHackerCourses(FILE *hackers, int *status) {
     char *line = readLine(hackers);
     if (my_strnlen(line, ' ') == 0) {
         *status = GOOD_PARSING;
-        free(line);
-        return NULL;
+        if(!feof(hackers)){
+            free(line);
+        }
+        LinkedList courseLst = safeAlloc(sizeof (struct linkedList));
+        return courseLst;
     }
     *status = BAD_PARSING;
 
     if (line == NULL) {
         return NULL;
     }
+
     const char *tmp = line;
     const char *params = my_strdup(my_strsep(&tmp, ' '), ' ');
 
-    Node courseLst = NULL;
+
+    LinkedList courseLst = safeAlloc(sizeof (struct linkedList));
 
     while (params != NULL) {
         Node newCourse = (Node) safeAlloc(sizeof(struct node));
@@ -162,12 +200,13 @@ Node parseHackerCourses(FILE *hackers, int *status) {
             free(courseNum);
             free((void *) params);
             free((void *) line);
+            free((void *) courseLst);
             return NULL;
         }
 
         *courseNum = atoi(params);
         newCourse->m_data = courseNum;
-        courseLst = pushBack(courseLst, newCourse);
+        courseLst->m_first = pushBack(courseLst->m_first, newCourse);
 
         free((void *) params);
         params = my_strdup(my_strsep(&tmp, ' '), ' ');
@@ -177,7 +216,7 @@ Node parseHackerCourses(FILE *hackers, int *status) {
     free((void *) line);
     return courseLst;
 }
-Node parseHackersStudentsLst(FILE *hackers, int *status) {
+LinkedList parseHackersStudentsLst(FILE *hackers, int *status) {
     char *line = readLine(hackers);
     *status = BAD_PARSING;
 
@@ -187,38 +226,42 @@ Node parseHackersStudentsLst(FILE *hackers, int *status) {
 
     if (my_strnlen(line, ' ') == 0) {
         *status = GOOD_PARSING;
-        free(line);
+        if(!feof(hackers)) {
+            free(line);
+        }
         return NULL;
     }
 
-    const char *tmp = line;
+    const char * tmp = line;
     char *params = my_strdup(my_strsep(&tmp, ' '), ' ');
-    Node studentsLst = NULL;
+    LinkedList studentsLst = safeAlloc(sizeof (struct linkedList));
 
     while (params != NULL) {
         Node newStudent = (Node) safeAlloc(sizeof(struct node));
         int *studentId = (int *) safeAlloc(sizeof(int));
 
-        if (newStudent == NULL || studentId == NULL || !isNumericString(params)) {
+        if (studentsLst == NULL || newStudent == NULL || studentId == NULL || !isNumericString(params)) {
             free((void *) line);
             free((void *) newStudent);
             free((void *) studentId);
             free((void *) params);
+            free((void *) studentsLst);
             return NULL;
         }
 
         *studentId = atoi(params);
         newStudent->m_data = studentId;
-        studentsLst = pushBack(studentsLst, newStudent);
+        studentsLst->m_first = pushBack(studentsLst->m_first, newStudent);
 
         free((void *) params);
         params = my_strdup(my_strsep(&tmp, ' '), ' ');
     }
 
     *status = GOOD_PARSING;
-    free((void *) line);
+    free(line);
     return studentsLst;
 }
+
 Hacker parseHacker(FILE *hackers) {
     Hacker hacker = (Hacker) safeAlloc(sizeof(struct hacker));
     if (hacker == NULL) {
@@ -234,9 +277,9 @@ Hacker parseHacker(FILE *hackers) {
         return NULL;
     }
 
-    Node courses = parseHackerCourses(hackers, &status[1]);
-    Node friends = parseHackersStudentsLst(hackers, &status[2]);
-    Node rivals = parseHackersStudentsLst(hackers, &status[3]);
+    LinkedList courses = parseHackerCourses(hackers, &status[1]);
+    LinkedList friends = parseHackersStudentsLst(hackers, &status[2]);
+    LinkedList rivals = parseHackersStudentsLst(hackers, &status[3]);
     initHacker(hacker, id, courses, friends, rivals);
 
     for (int i = 0; i < NUM_OF_PARSING; i++) {

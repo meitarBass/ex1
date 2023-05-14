@@ -32,11 +32,12 @@ Student getHackerFromList(EnrollmentSystem system, Hacker hacker);
 
 bool isHackerSatisfied(EnrollmentSystem sys, Hacker hacker);
 int checkIfHackersAreSatisfiedReturnIdIfNot(EnrollmentSystem system);
+bool checkIfHackerAskedForOneCourseAndNotSatisfied(EnrollmentSystem system);
 
 
 int parseHackerId(FILE *hackers, int *status);
-Node parseHackerCourses(FILE *hackers, int *status);
-Node parseHackersStudentsLst(FILE *hackers, int *status);
+LinkedList parseHackerCourses(FILE *hackers, int *status);
+LinkedList parseHackersStudentsLst(FILE *hackers, int *status);
 Hacker parseHacker(FILE *hackers);
 
 

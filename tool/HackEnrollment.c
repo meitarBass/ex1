@@ -4,7 +4,9 @@
 
 #include "HackEnrollment.h"
 
-EnrollmentSystem createEnrollment(FILE* students, FILE* courses, FILE* hackers) {
+void initQueue(IsraeliQueue q);
+
+EnrollmentSystem createEnrollment(FILE *students, FILE *courses, FILE *hackers) {
 
     FILE *studentsStream = fopen((const char *) students, "r");
     FILE *coursesStream = fopen((const char *) courses, "r");
@@ -14,6 +16,9 @@ EnrollmentSystem createEnrollment(FILE* students, FILE* courses, FILE* hackers) 
 
     memset(system, 0, sizeof(struct enrollmentSystem));
     if (studentsStream == NULL || coursesStream == NULL || hackersStream == NULL || system == NULL) {
+        free(system->m_students);
+        free(system->m_courses);
+        free(system->m_hackers);
         free(system); // REMEMBER TO NOT CALL DESTROY HERE
         safeFclose(studentsStream);
         safeFclose(coursesStream);
@@ -35,6 +40,32 @@ EnrollmentSystem createEnrollment(FILE* students, FILE* courses, FILE* hackers) 
     return system;
 }
 
+EnrollmentSystem readEnrollment(EnrollmentSystem sys, FILE *queues) {
+    FILE *queueStream = fopen((const char *) queues, "r");
+    if (queueStream == NULL || sys == NULL) {
+        safeFclose(queueStream);
+        return NULL;
+    }
+
+    bool parseSucceeded = parseQueueFile(sys, queueStream);
+    safeFclose(queueStream);
+
+    if (parseSucceeded) {
+        return sys;
+    }
+
+    return NULL;
+}
+
+void hackEnrollment(EnrollmentSystem sys, FILE *out) {
+    FILE *outStream = fopen((const char *) out, "w");
+    if (outStream == NULL || sys == NULL) {
+        return;
+    }
+    printQueueIntoFile(sys, outStream);
+    fflush(outStream);
+    fclose(outStream);
+}
 
 
 bool parseStudentsFile(EnrollmentSystem sys, FILE *students) {
@@ -81,7 +112,7 @@ bool parseCoursesFile(EnrollmentSystem sys, FILE *courses) {
         return NULL;
     }
     while (feof(courses) == 0) {
-        Node newNode = (Node) safeAlloc(sizeof(struct course));
+        Node newNode = (Node) safeAlloc(sizeof(struct node));
         if (newNode == NULL) {
             return false;
         }
@@ -100,6 +131,7 @@ bool parseQueueFile(EnrollmentSystem sys, FILE *queues) {
         return false;
     }
 
+
     while (feof(queues) == 0) {
         if (parseSingleLineIntoQueue(sys, queues) != ISRAELIQUEUE_SUCCESS) {
             return false;
@@ -115,14 +147,15 @@ bool parseQueueFile(EnrollmentSystem sys, FILE *queues) {
             if (hackerAsStudent == NULL) {
                 return ISRAELI_QUEUE_ERROR;
             }
-            Node hackerCourses = ((Hacker) hackers->m_data)->m_desiredCourses->m_first;
-            if (hackerCourses == NULL) {
+            LinkedList courseList = ((Hacker) hackers->m_data)->m_desiredCourses;
+            if (courseList->m_first == NULL) {
                 hackers = hackers->m_next;
                 continue;
             }
             int courseNum = course->m_courseNum;
-            while (hackerCourses != NULL) {
-                if (((Course) hackerCourses->m_data)->m_courseNum == courseNum) {
+            Node tmpNode = courseList->m_first;
+            while (tmpNode != NULL) {
+                if (((Course) tmpNode->m_data)->m_courseNum == courseNum) {
                     hackerAsStudent->m_isHacker = true;
                     parseHackerIntoStudent((Hacker) hackers->m_data, hackerAsStudent);
                     IsraeliQueueError err = IsraeliQueueEnqueue(course->m_students, hackerAsStudent);
@@ -130,7 +163,7 @@ bool parseQueueFile(EnrollmentSystem sys, FILE *queues) {
                         return err;
                     }
                 }
-                hackerCourses = hackerCourses->m_next;
+                tmpNode = tmpNode->m_next;
             }
             hackers = hackers->m_next;
         }
@@ -142,8 +175,11 @@ bool parseQueueFile(EnrollmentSystem sys, FILE *queues) {
 
 void printQueueIntoFile(EnrollmentSystem sys, FILE *out) {
     // TODO: Case of 1 course not happy
+    bool singlesAreSatisfied = checkIfHackerAskedForOneCourseAndNotSatisfied(sys);
     int studentsId = checkIfHackersAreSatisfiedReturnIdIfNot(sys);
-    if (studentsId != HACKERS_SATISFIED) {
+    if(!singlesAreSatisfied) {
+        return;
+    } else if (studentsId != HACKERS_SATISFIED) {
         fprintf(out, "Cannot satisfy constraints for %d\n", studentsId);
     } else {
         Node tmpNode = sys->m_courses->m_first;
@@ -168,17 +204,14 @@ void printQueueIntoFile(EnrollmentSystem sys, FILE *out) {
     }
 }
 
-
 Student parseSingleLineIntoStudent(FILE *students) {
     char *line = readLine(students);
-    if (line == NULL) {
-        return NULL;
-    }
-    if (my_strnlen(line, '\0') == 0) {
+    if (line == NULL || my_strnlen(line, '\0') == 0) {
         return NULL;
     }
     const char *params[7] = {0};
     const char *tmp = line;
+
     for (int i = 0; i < 7; i++) {
         params[i] = my_strdup(my_strsep(&tmp, ' '), ' ');
         if (params[i] == NULL) {
@@ -189,7 +222,7 @@ Student parseSingleLineIntoStudent(FILE *students) {
             return NULL;
         }
     }
-    free((void *) line);
+
     const char *studentId = params[0];
     const char *totalCredits = params[1];
     const char *gpa = params[2];
@@ -200,18 +233,32 @@ Student parseSingleLineIntoStudent(FILE *students) {
     Student newStudent = (Student) safeAlloc(sizeof(struct student));
     if (!initStudent(newStudent, studentId, totalCredits, gpa, name, lastName, city, department)) {
         destroyStudent(newStudent);
+        free((void *) studentId);
+        free((void *) totalCredits);
+        free((void *) gpa);
+        free(line);
         return NULL;
     }
+
+    free(line);
+    free((void *) studentId);
+    free((void *) totalCredits);
+    free((void *) gpa);
     return newStudent;
 }
-Course parseSingleLineIntoCourse(FILE *course, bool isSentive) {
+
+Course parseSingleLineIntoCourse(FILE *course, bool isSensitive) {
     char *line = readLine(course);
     if (line == NULL) {
         return NULL;
     }
     if (my_strnlen(line, '\0') == 0) {
+        if(!feof(course)) {
+            free(line);
+        }
         return NULL;
     }
+
     char *params[2] = {0};
     const char *tmp = line;
     params[0] = my_strdup(my_strsep(&tmp, ' '), ' ');
@@ -228,15 +275,23 @@ Course parseSingleLineIntoCourse(FILE *course, bool isSentive) {
     const char *courseSize = params[1];
 
     Course newCourse = (Course) safeAlloc(sizeof(struct course));
+
     if (!initCourse(newCourse, courseNumber, courseSize)) {
+        free((void *) courseNumber);
+        free((void *) courseSize);
         destroyCourse(newCourse);
         return NULL;
     }
+
+    free((void *) courseNumber);
+    free((void *) courseSize);
     return newCourse;
 }
+
 IsraeliQueueError parseSingleLineIntoQueue(EnrollmentSystem sys, FILE *queue) {
     char *line = readLine(queue);
     const char *tmp = line;
+
     if (line == NULL) {
         free((void *) line);
         return feof(queue) == 1 ? ISRAELIQUEUE_SUCCESS : ISRAELIQUEUE_ALLOC_FAILED;
@@ -250,24 +305,25 @@ IsraeliQueueError parseSingleLineIntoQueue(EnrollmentSystem sys, FILE *queue) {
     }
 
     int actualCourseNum = atoi(courseNum);
-    free((void *) courseNum);
     Course course = findCourseInSystem(sys, actualCourseNum);
-
+    free((void *) courseNum);
 
     while (true) {
         const char *params = my_strdup(my_strsep(&tmp, ' '), ' ');
         if (params == NULL) {
             break;
         } else {
-            if (!isNumericString(params) || (my_strnlen(params, 4096) != 9 && my_strnlen(params, 4096) != 10 &&
-                                             *(params + my_strnlen(params, 4096) - 2) != '\n')) {
+            if (!isNumericString(params) || (my_strnlen(params, ' ') != 9 && my_strnlen(params, ' ') != 10 &&
+                                             *(params + my_strnlen(params, ' ') - 2) != '\n')) {
                 free((void *) line);
                 free((void *) params);
                 return ISRAELIQUEUE_BAD_PARAM;
             }
+
             int studentId = atoi(params);
             Student student = findStudentInSystem(sys, studentId);
             student->m_isHacker = false;
+
             IsraeliQueueError err = IsraeliQueueEnqueue(course->m_students, student);
 
             if (ISRAELIQUEUE_SUCCESS != err) {
@@ -280,6 +336,7 @@ IsraeliQueueError parseSingleLineIntoQueue(EnrollmentSystem sys, FILE *queue) {
 
     if((void *) line != NULL && *line != '\0'){
         free((void *) line);
+        line = NULL;
     }
     return ISRAELIQUEUE_SUCCESS;
 }

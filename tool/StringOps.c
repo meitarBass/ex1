@@ -60,7 +60,7 @@ const char *my_strsep(const char ** s, char delim) {
 }
 
 bool isNumericString(const char *str) {
-    for (int i = 0; i < strnlen(str, 4096); i++) {
+    for (int i = 0; i < my_strnlen(str, ' '); i++) {
         if(str[i] == '\n') {
             return true;
         }
